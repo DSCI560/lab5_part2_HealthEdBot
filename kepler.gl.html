@@ -1,0 +1,229 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <title>Kepler.gl embedded map</title>
+
+        <!--Uber Font-->
+        <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+        <!--MapBox css-->
+        <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css" rel="stylesheet">
+
+        <!-— facebook open graph tags -->
+        <meta property="og:url" content="http://kepler.gl/" />
+        <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+        <meta property="og:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+        <meta property="og:site_name" content="kepler.gl" />
+        <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+
+        <!-— twitter card tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@uber">
+        <meta name="twitter:creator" content="@uber">
+        <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+        <meta name="twitter:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+        <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+        <!-- Load React/Redux -->
+        <script src="https://unpkg.com/react@16.8.4/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@16.8.4/umd/react-dom.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/redux@3.7.2/dist/redux.js" crossorigin></script>
+        <script src="https://unpkg.com/react-redux@7.1.3/dist/react-redux.min.js" crossorigin></script>
+        <script src="https://unpkg.com/styled-components@4.1.3/dist/styled-components.min.js" crossorigin></script>
+
+        <!-- Load Kepler.gl -->
+        <script src="https://unpkg.com/kepler.gl@3.0.0-alpha.0/umd/keplergl.min.js" crossorigin></script>
+
+        <style type="text/css">
+          body {margin: 0; padding: 0; overflow: hidden;}
+        </style>
+
+        <!--MapBox token-->
+        <script>
+          /**
+           * Provide your MapBox Token
+           **/
+          const MAPBOX_TOKEN = 'pk.eyJ1IjoidWNmLW1hcGJveCIsImEiOiJjbDBiYzlveHgwdnF0M2NtZzUzZWZuNWZ4In0.l9J8ptz3MKwaU9I4PtCcig';
+          const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+        </script>
+
+        <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-64694404-19', {
+            'storage': 'none',
+            'clientId': localStorage.getItem('ga:clientId')
+          });
+          ga(function(tracker) {
+              localStorage.setItem('ga:clientId', tracker.get('clientId'));
+          });
+          ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+          ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+          ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+          ga('set', 'page', 'keplergl-html');
+          ga('send', 'pageview');
+        </script>
+      </head>
+      <body>
+        <!-- We will put our React component inside this div. -->
+        <div id="app">
+          <!-- Kepler.gl map will be placed here-->
+        </div>
+
+        <!-- Load our React component. -->
+        <script>
+          /* Validate Mapbox Token */
+          if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+            alert(WARNING_MESSAGE);
+          }
+
+          /** STORE **/
+          const reducers = (function createReducers(redux, keplerGl) {
+            return redux.combineReducers({
+              // mount keplerGl reducer
+              keplerGl: keplerGl.keplerGlReducer.initialState({
+                uiState: {
+                  readOnly: false,
+                  currentModal: null
+                }
+              })
+            });
+          }(Redux, KeplerGl));
+
+          const middleWares = (function createMiddlewares(keplerGl) {
+            return keplerGl.enhanceReduxMiddleware([
+              // Add other middlewares here
+            ]);
+          }(KeplerGl));
+
+          const enhancers = (function craeteEnhancers(redux, middles) {
+            return redux.applyMiddleware(...middles);
+          }(Redux, middleWares));
+
+          const store = (function createStore(redux, enhancers) {
+            const initialState = {};
+
+            return redux.createStore(
+              reducers,
+              initialState,
+              redux.compose(enhancers)
+            );
+          }(Redux, enhancers));
+          /** END STORE **/
+
+          /** COMPONENTS **/
+          var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+            var LogoSvg = function LogoSvg() {
+              return react.createElement(
+                "div",
+                { className: "logo-container", style: {position: 'fixed', zIndex: 10000, padding: '4px'} },
+                  react.createElement(
+                    "svg",
+                    {
+                      className: "kepler_gl__logo",
+                      width: "107px",
+                      height: "21px",
+                      viewBox: "0 0 124 24"
+                    },
+                    react.createElement(
+                      "g",
+                      { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+                      react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+                      react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill:"#1FBAD6", width: "12.1", height: "12.1" })
+                    ),
+                    react.createElement(
+                      "g",
+                      {},
+                      react.createElement("path", { fill:"#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+                    )
+                  )
+                );
+              };
+
+            return function App() {
+              var rootElm = react.useRef(null);
+              var _useState = react.useState({
+                width: window.innerWidth,
+                height: window.innerHeight
+              });
+              var windowDimension = _useState[0];
+              var setDimension = _useState[1];
+              react.useEffect(function sideEffect(){
+                function handleResize() {
+                  setDimension({width: window.innerWidth, height: window.innerHeight});
+                };
+                window.addEventListener('resize', handleResize);
+                return function() {window.removeEventListener('resize', handleResize);};
+              }, []);
+              return react.createElement(
+                'div',
+                {style: {position: 'absolute', left: 0, width: '100vw', height: '100vh'}},
+                
+                react.createElement(keplerGl.KeplerGl, {
+                  mapboxApiAccessToken: mapboxToken,
+                  id: "map",
+                  width: windowDimension.width,
+                  height: windowDimension.height
+                })
+              )
+            }
+          }(React, KeplerGl, MAPBOX_TOKEN));
+
+          const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+            return react.createElement(
+              reactRedux.Provider,
+              {store},
+              react.createElement(KeplerElement, null)
+            )
+          }(React, ReactRedux, KeplerElement));
+          /** END COMPONENTS **/
+
+          /** Render **/
+          (function render(react, reactDOM, app) {
+            reactDOM.render(app, document.getElementById('app'));
+          }(React, ReactDOM, app));
+        </script>
+        <!-- The next script will show how to interact directly with Kepler map store -->
+        <script>
+          /**
+           * Customize map.
+           * In the following section you can use the store object to dispatch Kepler.gl actions
+           * to add new data and customize behavior
+           */
+          (function customize(keplerGl, store) {
+            const datasets = [{"version":"v1","data":{"id":"4kfu1rqov","label":"Final_Preprocessed_Complete.csv","color":[143,47,191],"allData":[["33-053-04856","COLUMBUS FEDERAL 3-16H","CONTINENTAL RESOURCES, INC.","McKenzie County","ND",48.075449,-103.669687,25160,"3/2/2014","Bakken","10968","23122","41","74589","Barrels","Sand Frac","N/A","3788746","7979","31.0"],["33-105-02719","ATLANTA 14-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.109434,-103.727494,23359,"1/2()/2014","3 Forks","10924","19085","27","51087","Barrels","Sa11d Frac","N/A","3009408","8352","28.0"],["33-105-02728","ATLANTA FEDERAL 5-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.10951,-103.730156,23368,"11/19/2013","MB","10858","21165","31","71324","Barrels","N/A","N/A","3651745","7993","31.0"],["33-105-02723","ATLANTA FEDERAL 10-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.109455,-103.728231,23363,"12\" 8/2014","3 Forks","10918","20517","30","58554","Barrels","N/A","N/A","3483041","7877","24.0"],["33-053-03943","MAGNUM 1-36-25H","SLAWSON EXPLORATION COMPANY, INC.","McKenzie County","ND",48.025064,-103.622135,22247,"3/30/2012","Middle Bakken","N/A","N/A","(PS","38498","N/A","Sand Frac","N/A","N/A","6790","36.7"],["33-105-02731","ATLANTA 2-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.109546,-103.731344,23371,"10/31l /2013","3 Forks","10888","20055","25","45855","Barrels","Sand Frac","N/A","2980006","8500","25.0"],["33-105-02724","ATLANTA FEDERAL 9-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.10946,-103.728415,23364,"12126/2013","Middle Bakken","10854","21315","34","59949","Barrels","N/A","N/A","3970139","8018","31.0"],["33-053-03911","YUKON 5301 41-12T","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.082914,-103.622634,20864,"N/A","N/A","N/A","N/A","N/A","iinet","ae","N/A","N/A","N/A","N/A","N/A"],["33-053-03911","YUKON 5301 41-12T","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.082914,-103.622634,22740,"09/08/2012","Bakken","11080","21140 |","36","80480","Barrels","Sand Frac","N/A","3600530","9705","39.5"],["33-053-03911","YUKON 5301 41-12T","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.082914,-103.622634,22221,"09/07/2013","Bakken","11117","21122","36","90354","Barrels","Sand Frac","N/A","3765029","8782","37.7"],["33-053-06549","LEWIS FEDERAL 5300 11-31 2B","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.035926,-103.6031,30189,"N/A","N/A","N/A","N/A","N/A","305814","Barrels","Sand Frac","N/A","6010700","N/A","N/A"],["33-053-05924","CHALMERS 5301 44-24 2TR","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.055866,-103.604903,28342,"10/31/2014","Three Forks","11043","20883","36","207943","Barrels","Sand Frac","N/A","3775876","9936","73.0"],["33-053-05954","WADE FEDERAL 5300 41-30 6B","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.041298,-103.603014,28425,"04/24/2015","Bakken","10032","20425","50","188339","Barrels","Sand Frac","N/A","9170249","9033","38.0"],["33-053-06011","CHALMERS 5301 44-24 4T2R","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.055641,-103.604904,28600,"11/25/2014","Three Forks","11074","20938","36","98038","Barrels","Sand Frac","N/A","6229694","8877","38.0"],["33-053-06030","KLINE FEDERAL 5300 41-18 12TX","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.068816,-103.602866,28658,"N/A","N/A","N/A","N/A","N/A","N/A","Barrels","Sand Frac","N/A","N/A","N/A","N/A"],["33-053-05849","LEWIS FEDERAL 5300 21-31 5B","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.031808,-103.603086,28194,"07′1672019","Bakken","N/A","N/A","35","Barrels","N/A","Sand Frac","N/A","N/A","N/A","N/A"],["33-053-06231","GRAMMA FEDERAL 5300 41-31 12B","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.026154,-103.602783,29316,"05/26/2015","Bakken","11132","20435","50","168692","Barrels","Sand Frac","N/A","9139069","9676","37.6"],["33-053-06029","KLINE FEDERAL 5300 41-18 14BX","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.068635,-103.602863,28655,"06/09/2015","Bakken","11113","20645","50","214895","Barrels","Sand Frac","N/A","9543260","9411","41.0"],["33-053-06223","KLINE FEDERAL 5300 11-18 5B","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.078987,-103.602835,29242,"07/16/2015","Bakken","N/A","20891","36","209044","Barrels","Sand Frac","N/A","4192230","9205","73.0"],["33-053-06021","CHALMERS 5300 21-19 8T","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.061525,-103.602523,28636,"04/25/2015","Three Forks","11165","20511","36","96178","Barrels","Sand Frac","N/A","N/A","9390","40.0"],["33-053-04852","COLUMBUS FEDERAL 1-16H","CONTINENTAL RESOURCES, INC.","McKenzie County","ND",48.074859,-103.67017,25156,"7/7/2013","Bakken","11386","21276","30","48693","Barrels","Sand Frac","N/A","2686987","7682","30.0"],["33-105-02722","ATLANTA 11-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.10945,-103.728047,23362,"1/12/~20~1~4~~~-","M~i~d~d~le~B~a~k~k~en:","0~89~6T--","~1~96~9~7~~2","~9~--~~--:::-=::-~r.","-4~8~84_7-:------","B~a7r_re~ls:-;::;-;--;::-","Sancl Frac","N/A","3069436","8094","30.0"],["33-053-05845","LEWIS FEDERAL 5300 21-31 6B","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.031718,-103.603085,28190,"N/A","Bakken","N/A","N/A","N/A","N/A","Barrels","Sand Frac","N/A","6052935","N/A","N/A"],["33-053-06056","KLINE FEDERAL 5300 31-18 7T","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.074452,-103.602935,28755,"07/1212015","Three Forks","19681","20551","3","10330","Barrels","Sand Frac","N/A","295940","8729","35.9"],["33-053-03944","MAGNUM 2-36-25H","SLAWSON EXPLORATION COMPANY, INC.","McKenzie County","ND",48.024944,-103.605063,22249,"11/M/2012","Middle Bakken","11104","20705","32","22133","Barrels","Sane I Frac","N/A","1160090","8403","39.7"],["33-053-04981","COLVILLE 5301 44-12T","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.082623,-103.607895,25571,"09/11/2013","Bakken","N/A","21090","36","95801","Barrels","Sand Frac","N/A","3826701","9406","36.0"],["33-105-02725","ATLANTA FEDERAL 8-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.109493,-103.729603,23365,"12/14/2014","3 Forks","10865","22585","38","72511","Barrels","N/A","N/A","3764730","8557","23.0"],["33-053-90244","BUCK SHOT SWD 5300 31-31","FALCON MIDSTREAM SERVICES LLC","McKenzie County","ND",48.0291,-103.599403,90244,"07/20/2013","N/A","5625I","6150","8","9000","Gallons","Acid","N/A","N/A","N/A","N/A"],["33-053-06028","KLINE FEDERAL 5300 41-18 13T2X","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.068726,-103.602865,28654,"06/09/2015","Three Forks Second","11185","20754","50","126978","Barrels","Sand Frac","N/A","4230380","9122","39.0"],["33-053-05943","WADE FEDERAL 5300 41-30 4T","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.042266,-103.603158,28394,"04/08/2015","Three Forks","11079","20187","50","238848","Barrels","Sand Frac","N/A","9362098","8608","35.0"],["33-053-06755","KLINE FEDERAL 5300 31-18 15T","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.074633,-103.602938,30789,"07/13/2015","Three Forks","19506","20531 |","4","13837","Barrels","Sand Frac","N/A","404000","8765","36.2"],["33-053-04854","TALLAHASSEE 2-16H","CONTINENTAL RESOURCES, INC.","McKenzie County","ND",48.075235,-103.669874,25158,"3/14/2014","Bakken","11080","18127","24","56607","Barrels","Sand Frac","N/A","3013084","7518","30.0"],["33-105-02726","ATLANTA FEDERAL 7-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.109499,-103.729788,23366,"12/13/2013","Middle Bakken","10821","23100","40","62806","Barrels","N/A","N/A","4810703","8461","28.0"],["33-053-00605","WRRMU 4-28","SM ENERGY COMPANY","McKenzie County","ND",47.346236,-103.55443,28754,"07/13/2015","Bakken","18852","20390 |","6","19114","Barrels","Sand Frac","N/A","577940","8860","36.7"],["33-105-02720","ATLANTA 13-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.109439,-103.727678,23360,"2/5/:!014","Middle Bakken","10850","19185","29","47452","Barrels","N/A","N/A","3069694","7468","26.0"],["33-053-06243","KLINE FEDERAL 5300 11-18 2B","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.079234,-103.60267,29334,"07/16/2015","Bakken","11024","N/A","36","209640","Barrels","Sand Frac","N/A","4168220","9141","73.0"],["33-053-05998","WADE FEDERAL 5300 41-30 7T","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.041208,-103.603016,28557,"04/24/2015","Three Forks","11167","20517","36","134353","Barrels","Sand Frac","N/A","3973130","9218","39.0"],["33-053-03413","WADE FEDERAL 5300 21-30H","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.047147,-103.6031,20197,"Cased Hol","Bakken","N/A","N/A","N/A","N/A","Barrels","N/A","N/A","4440376","N/A","42.3"],["33-053-06129","WADE FEDERAL 5300 21-30 12T","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.048736,-103.602904,28976,"03/16/2015","Three Forks","11078I","20374","50","190732","Barrels","Sand Frac","N/A","9170590","9035","43.0"],["33-053-04069","MAGNUM 3-36-25H","SLAWSON EXPLORATION COMPANY, INC.","McKenzie County","ND",48.024944,-103.605166,22731,"7I7IZ012","Middle Bakken","11126","21145","[35","40332","Barrels","Sand Frac","N/A","3630945","7548","34.0"],["33-053-06026","KLINE FEDERAL 5300 41-18 10B","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.068997,-103.602868,28652,"06/26/2015","Bakken","11125I","20460","50","192526","Barrels","Sand Frac","N/A","9254340","8844","39.0"],["33-053-06051","WADE FEDERAL 5300 41-30 9B","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.041027,-103.60302,28744,"N/A","Bakken","11552","20265","50","171968","Barrels","Sand Frac","N/A","9289252","9310","37.0"],["33-053-90329","CARSON SWD 5301 12-24","FALCON MIDSTREAM SERVICES LLC","McKenzie County","ND",48.066082,-103.615308,90329,"N/A","N/A","I","N/A","N/A","N/A","Barrels","N/A","N/A","N/A","N/A","N/A"],["33-053-04855","COLUMBUS FEDERAL 2-16H","CONTINENTAL RESOURCES, INC.","McKenzie County","ND",48.075342,-103.66978,25159,"2/27/2014","Three Forks","10850","23475","43","85599","Barrels","Sand Frac","N/A","3937842","8493","31.0"],["33-105-02727","ATLANTA FEDERAL 6-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.109504,-103.729972,23367,"11/21/2013","3 Forks","10858","22005","37","64611","Barrels","Sanil Frac","N/A","3841831","8539","24.0"],["33-053-05995","WADE FEDERAL 5300 31-30 2B","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.042447,-103.603155,28554,"04/08/2015","Bakken","11034","20595","50","215747","Barrels","Sand Frac","N/A","9121901","8832","37.0"],["33-053-06548","LEWIS FEDERAL 5300 11-31 3B","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.035835,-103.603111,30188,"06′20′2019","Bakken","N/A","N/A","40","N/A","Barrels","Sand Frac","N/A","6006140","N/A","N/A"],["33-053-06012","CHALMERS WADE FEDERAL 5301 44-24 12TXR","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.055551,-103.604905,28601,"11/25/2014","Three Forks","11418","21025","36","95600","Barrels","Sand Frac","N/A","9370930","9044","37.2"],["33-105-02729","ATLANTA 4-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.109535,-103.730975,23369,"11/E /2013","3 Forks","10913","20504","31","51878","Barrels","N/A","N/A","3223232","8540","28.0"],["33-053-05906","WADE FEDERAL 5300 31-30 11T","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.044162,-103.60267,28303,"03/29/2015","Three Forks","11080","20453","36","123705","Barrels","Sand Frac","N/A","3976880","8968","39.0"],["33-053-04853","TALLAHASSEE 3-16H","CONTINENTAL RESOURCES, INC.","McKenzie County","ND",48.075131,-103.669967,25157,"3/14/2014","Three Forks","10830","18434","24","64952","Barrels","Sand Frac","N/A","2829582","8491","31.0"],["33-105-02721","ATLANTA 12-6H","CONTINENTAL RESOURCES, INC.","Williams County","ND",48.109444,-103.727862,23361,"111 ::/2014","3 Forks","10895","19500","29","53948","Barrels","N/A","N/A","3098438","8528","30.0"],["33-053-06010","CHALMERS 5301 44-24 3BR","OASIS PETROLEUM NORTH AMERICA LLC","McKenzie County","ND",48.055776,-103.604903,28599,"10/30/2014","Bakken","10910","20833","36","206015","Barrels","Sand Frac","N/A","4076819","9177","75.0"]],"fields":[{"name":"API #","type":"string","format":"","analyzerType":"STRING"},{"name":"Well Name_x","type":"string","format":"","analyzerType":"STRING"},{"name":"Operator Name","type":"string","format":"","analyzerType":"STRING"},{"name":"County","type":"string","format":"","analyzerType":"STRING"},{"name":"State","type":"string","format":"","analyzerType":"STRING"},{"name":"Latitude","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Longitude","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Well_file_no","type":"integer","format":"","analyzerType":"INT"},{"name":"stimulation_date","type":"string","format":"","analyzerType":"STRING"},{"name":"stimulated_formation","type":"string","format":"","analyzerType":"STRING"},{"name":"top_ft","type":"string","format":"","analyzerType":"STRING"},{"name":"bottom_ft","type":"string","format":"","analyzerType":"STRING"},{"name":"stimulation_stages","type":"string","format":"","analyzerType":"STRING"},{"name":"volume","type":"string","format":"","analyzerType":"STRING"},{"name":"volume_units","type":"string","format":"","analyzerType":"STRING"},{"name":"type_treatment","type":"string","format":"","analyzerType":"STRING"},{"name":"acid","type":"string","format":"","analyzerType":"STRING"},{"name":"lbs_prop","type":"string","format":"","analyzerType":"STRING"},{"name":"max_psi","type":"string","format":"","analyzerType":"STRING"},{"name":"bbls_min","type":"string","format":"","analyzerType":"STRING"}]}}];
+            const config = {"version":"v1","config":{"visState":{"filters":[],"layers":[{"id":"kl1qe8","type":"point","config":{"dataId":"4kfu1rqov","label":"point","color":[231,159,213],"highlightColor":[252,242,26,255],"columns":{"lat":"Latitude","lng":"Longitude","altitude":null},"isVisible":true,"visConfig":{"radius":10,"fixedRadius":false,"opacity":0.8,"outline":true,"thickness":2,"strokeColor":[234,68,68],"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#5A1846","#900C3F","#C70039","#E3611C","#F1920E","#FFC300"]},"radiusRange":[0,50],"filled":true},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center"}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear"}}],"interactionConfig":{"tooltip":{"fieldsToShow":{"4kfu1rqov":[{"name":"API #","format":null},{"name":"Well Name_x","format":null},{"name":"Operator Name","format":null},{"name":"County","format":null},{"name":"State","format":null},{"name":"bbls_min","format":null},{"name":"max_psi","format":null},{"name":"lbs_prop","format":null},{"name":"acid","format":null},{"name":"type_treatment","format":null},{"name":"volume_units","format":null},{"name":"stimulation_stages","format":null},{"name":"volume","format":null},{"name":"bottom_ft","format":null},{"name":"top_ft","format":null},{"name":"stimulation_date","format":null},{"name":"stimulated_formation","format":null}]},"compareMode":false,"compareType":"absolute","enabled":true},"brush":{"size":0.5,"enabled":false},"geocoder":{"enabled":false},"coordinate":{"enabled":false}},"layerBlending":"normal","splitMaps":[],"animationConfig":{"currentTime":null,"speed":1}},"mapState":{"bearing":0,"dragRotate":false,"latitude":47.727891,"longitude":-103.642887,"pitch":0,"zoom":8,"isSplit":false},"mapStyle":{"styleType":"dark","topLayerGroups":{},"visibleLayerGroups":{"label":true,"road":true,"border":false,"building":true,"water":true,"land":true,"3d building":false},"threeDBuildingColor":[9.665468314072013,17.18305478057247,31.1442867897876],"mapStyles":{}}}};
+
+            const loadedData = keplerGl.KeplerGlSchema.load(
+              datasets,
+              config
+            );
+
+            store.dispatch(keplerGl.addDataToMap({
+              datasets: loadedData.datasets,
+              config: loadedData.config,
+              options: {
+                centerMap: false
+              }
+            }));
+          }(KeplerGl, store))
+        </script>
+      </body>
+    </html>
+  
